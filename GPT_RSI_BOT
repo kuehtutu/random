@@ -1,0 +1,49 @@
+import pandas as pd
+import yfinance as yf
+import talib
+
+# Define the stock symbol and time interval for data
+symbol = "AAPL"
+interval = "1d"
+
+# Define the period and oversold/overbought thresholds for the RSI
+period = 14
+oversold = 30
+overbought = 70
+
+# Download the historical data for the stock
+df = yf.download(symbol, interval=interval, period="max")
+
+# Calculate the RSI using the TA-Lib library
+rsi = talib.RSI(df['Close'], timeperiod=period)
+
+# Define a function to buy or sell based on the RSI value
+def trade_rsi(rsi_value, holding):
+    if rsi_value < oversold and not holding:
+        # Buy the stock if RSI is oversold and not currently holding
+        return True, df['Close'][-1]
+    elif rsi_value > overbought and holding:
+        # Sell the stock if RSI is overbought and currently holding
+        return False, df['Close'][-1]
+    else:
+        # Do nothing if neither buying nor selling conditions are met
+        return holding, None
+
+# Initialize variables for tracking trades and profits
+holding = False
+buy_price = 0
+sell_price = 0
+total_profit = 0
+
+# Iterate over the RSI values and execute trades accordingly
+for i in range(period, len(rsi)):
+    holding, trade_price = trade_rsi(rsi[i], holding)
+    if trade_price:
+        if holding:
+            # Sell the stock if already holding and buying again at a lower price
+            total_profit += sell_price - trade_price
+        else:
+            # Buy the stock if not currently holding
+            buy_price = trade_price
+        print(f"Trade at {df.index[i]}: Buy={buy_price:.2f}, Sell={sell_price:.2f}, Profit={total_profit:.2f}")
+    sell_price = trade_price
